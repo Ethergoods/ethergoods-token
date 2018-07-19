@@ -57,7 +57,7 @@ contract EtherGoodsToken is ERC721Token {
 
 struct GoodType {
 
-    uint256 goodTypeId;
+    uint256 typeId;
     Multihash ipfsHash;
     address owner;
     uint32 totalSupply;
@@ -67,18 +67,26 @@ struct GoodType {
 
 struct GoodTypeCost {
 
-     address tokenContract;
+     address tokenAddress;
      uint256 tokenAmount;
 
 }
 
 struct GoodOwnership {
 
-    uint256 goodTypeId;
+    uint256 typeId;
     address owner;
     uint32 typeTokenIndex;
 
 }
+
+  event DefineType(address indexed from, uint256 typeId, uint256 totalSupply);
+
+  event DefineCost(address indexed from, uint256 typeId, address tokenAddress, uint256 tokenAmount );
+
+  event Mint(address indexed from, uint256 goodTypeId, uint32 typeTokenindex, uint256 tokenId);
+
+
 
   /**
    * @dev Constructor function
@@ -98,11 +106,11 @@ struct GoodOwnership {
    */
   function defineType(bytes32 hashHex,uint8 hashFunction, uint8 hashSize, uint32 totalSupply) public returns (uint256 success)
   {
-    require( goodTypes[nextGoodTypeId].goodTypeId == 0x0 );
+    require( goodTypes[nextGoodTypeId].typeId == 0x0 );
 
-    uint256 memory typeId = nextGoodTypeId;
+    uint256 typeId = nextGoodTypeId;
 
-    goodTypes[typeId].goodTypeId = typeId;
+    goodTypes[typeId].typeId = typeId;
     goodTypes[typeId].ipfsHash.hashHex = hashHex;
     goodTypes[typeId].ipfsHash.hashFunction = hashFunction;
     goodTypes[typeId].ipfsHash.hashSize = hashSize;
@@ -126,10 +134,10 @@ struct GoodOwnership {
     DefineCost(msg.sender, typeId, tokenAddress, tokenAmount ); // define this
   }
 
-  function transferTypeOwnership(address newOwner) public
+  function transferTypeOwnership(address newOwner, uint256 typeId) public
   {
     require(msg.sender == goodTypes[typeId].owner);
-    goodTypeCosts[typeId].owner = newOwner;
+    goodTypes[typeId].owner = newOwner;
   }
 
 
@@ -140,14 +148,17 @@ struct GoodOwnership {
    */
   function mintInstance(uint256 typeId, address minter ) public
   {
-    //pay the tokens to the owner
-    require( ERC20Interface( goodTypeCosts[typeId].tokenAddress ).transferFrom( minter, goodTypes[typeId].owner, goodTypeCosts[typeId].tokens   ) );
+    //pay the tokens to the owner, requires a good type cost to be defined
+    require( ERC20Interface( goodTypeCosts[typeId].tokenAddress ).transferFrom( minter, goodTypes[typeId].owner, goodTypeCosts[typeId].tokenAmount   ) );
 
-    uint256 memory nextTypeTokenIndex = goodTypes[typeId].nextTypeTokenIndex;
-    goodTypes[typeId].nextTypeTokenIndex = goodTypes[typeId].nextTypeTokenIndex.add(1);
+    uint32 nextTypeTokenIndex = goodTypes[typeId].nextTypeTokenIndex;
+    goodTypes[typeId].nextTypeTokenIndex = goodTypes[typeId].nextTypeTokenIndex + 1 ;
+
+    require( goodTypes[typeId].nextTypeTokenIndex > nextTypeTokenIndex ); //makes it safe
     require( goodTypes[typeId].nextTypeTokenIndex < goodTypes[typeId].totalSupply );
 
-    uint256 memory tokenId = sha3( typeId, nextTypeTokenIndex );
+    bytes32 tokenHash = keccak256( typeId, nextTypeTokenIndex );
+    uint256 tokenId = uint256(tokenHash);
 
     goodIndex[tokenId].owner = minter;
     goodIndex[tokenId].typeId = typeId;
@@ -155,7 +166,13 @@ struct GoodOwnership {
 
     _mint(minter, tokenId);
 
-    Mint(minter, typeId, tokenId);
+  //  string memory metadata = '';
+    bytes memory metadata = new bytes(tokenId);
+
+    _setTokenURI(tokenId, string(metadata) );
+    //set metadata
+
+    Mint(minter, typeId, nextTypeTokenIndex, tokenId);
   }
 
 
