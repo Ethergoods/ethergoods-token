@@ -56,7 +56,7 @@ contract EtherGoodsToken is ERC721Token {
 }
 
 struct GoodType {
-
+   
     uint256 typeId;
     Multihash ipfsHash;
     address owner;
@@ -108,6 +108,11 @@ struct GoodOwnership {
   {
     require( goodTypes[nextGoodTypeId].typeId == 0x0 );
 
+
+    //TODO : MAKE SURE NOBODY HAS SUBMITTED THIS IPFS HASH BEFORE
+
+
+
     uint256 typeId = nextGoodTypeId;
 
     goodTypes[typeId].typeId = typeId;
@@ -149,6 +154,7 @@ struct GoodOwnership {
   function mintInstance(uint256 typeId, address minter ) public
   {
     //pay the tokens to the owner, requires a good type cost to be defined
+    require( goodTypeCosts[typeId].tokenAddress != 0x0 );
     require( ERC20Interface( goodTypeCosts[typeId].tokenAddress ).transferFrom( minter, goodTypes[typeId].owner, goodTypeCosts[typeId].tokenAmount   ) );
 
     uint32 nextTypeTokenIndex = goodTypes[typeId].nextTypeTokenIndex;
@@ -166,9 +172,8 @@ struct GoodOwnership {
 
     _mint(minter, tokenId);
 
-  //  string memory metadata = '';
-    bytes memory metadata = new bytes(tokenId);
 
+    bytes memory metadata = new bytes(typeId);
     _setTokenURI(tokenId, string(metadata) );
     //set metadata
 
